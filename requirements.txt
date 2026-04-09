@@ -3,7 +3,6 @@ uvicorn[standard]>=0.24.0
 redis>=5.0.0
 pydantic>=2.0.0
 
-# Deepiri ModelKit (for event schemas)
-# Installed from /app/deepiri-modelkit in Dockerfile
-# For local development: pip install -e ../../../deepiri-modelkit
+# Deepiri ModelKit contracts are vendored under app/deepiri-modelkit.
+# Import path is provided via PYTHONPATH in local/docker run commands.
 
