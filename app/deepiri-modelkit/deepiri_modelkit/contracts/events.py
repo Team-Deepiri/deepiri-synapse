@@ -2,7 +2,7 @@
 Pydantic event models for deepiri modelkit contracts.
 
 This module defines simple, reviewable event schemas used by
-`platform-services/shared/deepiri-synapse` for runtime validation.
+`deepiri-synapse` for runtime validation.
 """
 from __future__ import annotations
 
