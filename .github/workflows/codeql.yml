@@ -24,11 +24,11 @@ concurrency:
 jobs:
   gate:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
     outputs:
       should_run: ${{ steps.gate.outputs.should_run }}
     steps:
       - name: Restore push counter
+        if: github.event_name == 'push'
         uses: actions/cache/restore@v4
         with:
           path: push-count.txt
@@ -38,7 +38,13 @@ jobs:
 
       - name: Budget pushes (run every 5th)
         id: gate
+        env:
+          RUN_NAME: ${{ github.event_name }}
         run: |
+          if [ "$RUN_NAME" != "push" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           count=$(cat push-count.txt 2>/dev/null || echo 0)
           count=$((count + 1))
           echo "$count" > push-count.txt
@@ -49,6 +55,7 @@ jobs:
           fi
 
       - name: Persist updated counter
+        if: github.event_name == 'push'
         uses: actions/cache/save@v4
         with:
           path: push-count.txt
