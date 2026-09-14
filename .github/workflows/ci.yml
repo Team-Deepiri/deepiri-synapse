@@ -1,11 +1,65 @@
+name: CI
+
 on:
   push:
     branches: [ main, dev ]
   pull_request:
     branches: [ main, dev ]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.gitignore'
+      - 'LICENSE*'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.gate.outputs.should_run }}
+    steps:
+      - name: Restore push counter
+        if: github.event_name == 'push'
+        uses: actions/cache/restore@v4
+        with:
+          path: push-count.txt
+          key: pushcounter-${{ github.workflow }}-${{ github.ref }}
+          restore-keys: |
+            pushcounter-${{ github.workflow }}-${{ github.ref }}
+
+      - name: Budget pushes (run every 5th)
+        id: gate
+        env:
+          RUN_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$RUN_NAME" != "push" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          count=$(cat push-count.txt 2>/dev/null || echo 0)
+          count=$((count + 1))
+          echo "$count" > push-count.txt
+          if [ $((count % 5)) -eq 0 ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Persist updated counter
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: push-count.txt
+          key: pushcounter-${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
+
   test:
+    needs: gate
+    if: needs.gate.outputs.should_run != 'false'
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -23,5 +77,4 @@ jobs:
       - name: Run Tests
         run: python -m pytest tests/
         env: 
-          PYTHONPATH: ${{ github.workspace }}/app/deepiri-modelkit:${{ github.workspace }}/app      
-  
+          PYTHONPATH: ${{ github.workspace }}/app/deepiri-modelkit:${{ github.workspace }}/app
